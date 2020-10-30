@@ -7,14 +7,16 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/micro-community/micro-webui/handler"
 	"github.com/micro/micro/v3/plugin"
 	"github.com/micro/micro/v3/service"
-	"github.com/micro/micro/v3/service/auth"
 	"github.com/micro/micro/v3/service/logger"
 	"github.com/micro/micro/v3/service/registry"
+	regRouter "github.com/micro/micro/v3/service/router/registry"
 	"github.com/urfave/cli/v2"
 )
 
@@ -34,7 +36,7 @@ var (
 	// Base path sent to web service.
 	// This is stripped from the request path
 	// Allows the web service to define absolute paths
-	ProxyPath             = "/{service:[a-zA-Z0-9]+}"
+	APIPath               = "/{service:[a-zA-Z0-9]+}"
 	BasePathHeader        = "X-Micro-Web-Base-Path"
 	statsURL              string
 	loginURL              string
@@ -48,9 +50,6 @@ var (
 type srv struct {
 	*mux.Router
 	// the proxy server
-	prx *proxy
-	// auth service
-	auth auth.Auth
 }
 
 type reg struct {
@@ -88,38 +87,76 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 	for _, p := range plugin.Plugins() {
 		p.Init(ctx)
 	}
-
+	// initialise service
+	srv := service.New(service.Name(Name))
 	// create the router
-	var h http.Handler
+	//	var h http.Handler
 	r := mux.NewRouter()
-	h = r
+	//	h = r
+
+	rt := regRouter.NewRouter()
+
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "OPTIONS" {
+			return
+		}
+		response := fmt.Sprintf(`{"version": "%s"}`, ctx.App.Version)
+		w.Write([]byte(response))
+	})
+
+	r.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		return
+	})
+	r.HandleFunc("/client", callHandler)
+	r.HandleFunc("/services", registryHandler)
+	r.HandleFunc("/service/{name}", registryHandler)
+	//r.PathPrefix("/{service:[a-zA-Z0-9]+}").Handler(p)
+	r.PathPrefix(APIPath).Handler(handler.Meta(srv, rt, Namespace))
 
 }
 
-// ServeHTTP serves the web dashboard and proxies where appropriate
-func (s *srv) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
-}
 
-func format(v *registry.Value) string {
-	if v == nil || len(v.Values) == 0 {
-		return "{}"
+func render(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}) {
+	t, err := template.New("template").Funcs(template.FuncMap{
+		"format": format,
+		"Title":  strings.Title,
+		"First": func(s string) string {
+			if len(s) == 0 {
+				return s
+			}
+			return strings.Title(string(s[0]))
+		},
+	}).Parse(layoutTemplate)
+	if err != nil {
+		http.Error(w, "Error occurred:"+err.Error(), 500)
+		return
 	}
-	var f []string
-	for _, k := range v.Values {
-		f = append(f, formatEndpoint(k, 0))
+	t, err = t.Parse(tmpl)
+	if err != nil {
+		http.Error(w, "Error occurred:"+err.Error(), 500)
+		return
 	}
-	return fmt.Sprintf("{\n%s}", strings.Join(f, ""))
-}
 
-func (s *srv) indexHandler(w http.ResponseWriter, r *http.Request) {
+	// If the user is logged in, render Account instead of Login
+	loginTitle := "Login"
+	user := ""
 
-}
+	if c, err := r.Cookie(inauth.TokenCookieName); err == nil && c != nil {
+		token := strings.TrimPrefix(c.Value, inauth.TokenCookieName+"=")
+		if acc, err := s.auth.Inspect(token); err == nil {
+			loginTitle = "Account"
+			user = acc.ID
+		}
+	}
 
-func (s *srv) registryHandler(w http.ResponseWriter, r *http.Request) {
-
-}
-
-func (s *srv) callHandler(w http.ResponseWriter, r *http.Request) {
-
+	if err := t.ExecuteTemplate(w, "layout", map[string]interface{}{
+		"LoginTitle": loginTitle,
+		"LoginURL":   loginURL,
+		"StatsURL":   statsURL,
+		"Results":    data,
+		"User":       user,
+	}); err != nil {
+		http.Error(w, "Error occurred:"+err.Error(), 500)
+	}
 }

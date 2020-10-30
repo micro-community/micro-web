@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/micro-community/micro-webui/web"
 	"github.com/micro-community/micro-webui/auth"
+	"github.com/micro-community/micro-webui/web"
 	"github.com/micro/micro/v3/cmd"
 	"github.com/micro/micro/v3/service/logger"
 	"github.com/micro/micro/v3/service/server"

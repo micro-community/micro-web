@@ -2,15 +2,21 @@ package web
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/micro/micro/v3/service/registry"
 	"github.com/serenize/snaker"
 )
 
-func faviconHandler(w http.ResponseWriter, r *http.Request) {
-	return
+func format(v *registry.Value) string {
+	if v == nil || len(v.Values) == 0 {
+		return "{}"
+	}
+	var f []string
+	for _, k := range v.Values {
+		f = append(f, formatEndpoint(k, 0))
+	}
+	return fmt.Sprintf("{\n%s}", strings.Join(f, ""))
 }
 
 func formatEndpoint(v *registry.Value, r int) string {
