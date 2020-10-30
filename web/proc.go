@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"sort"
 	"strings"
 
-	"github.com/micro/micro/v3/service/logger"
+	"github.com/micro-community/micro-webui/resolver"
 	"github.com/micro/micro/v3/service/registry"
+	"github.com/micro/micro/v3/service/logger"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -18,12 +20,8 @@ type webService struct {
 	Icon string // TODO: lookup icon
 }
 
-var (
-	regs registry.Registry
-)
-
 // ServeHTTP serves the web dashboard and proxies where appropriate
-func ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *srv) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if len(r.URL.Host) == 0 {
 		r.URL.Host = r.Host
 	}
@@ -90,19 +88,59 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.Router.ServeHTTP(w, r)
 		return
 	}
-
-	return
 	// otherwise serve the proxy
-	//s.prx.ServeHTTP(w, r)
+	s.prx.ServeHTTP(w, r)
 }
 
-func indexHandler(w http.ResponseWriter, r *http.Request) {
+
+// proxy is a http reverse proxy
+func (s *srv) proxy() *proxy {
+	director := func(r *http.Request) {
+		kill := func() {
+			r.URL.Host = ""
+			r.URL.Path = ""
+			r.URL.Scheme = ""
+			r.Host = ""
+			r.RequestURI = ""
+		}
+
+		// check to see if the endpoint was encoded in the request context
+		// by the auth wrapper
+		var endpoint *resolver.Endpoint
+		if val, ok := (r.Context().Value(resolver.Endpoint{})).(*resolver.Endpoint); ok {
+			endpoint = val
+		}
+
+		// TODO: better error handling
+		var err error
+		if endpoint == nil {
+			if endpoint, err = s.resolver.Resolve(r); err != nil {
+				fmt.Printf("Failed to resolve url: %v: %v\n", r.URL, err)
+				kill()
+				return
+			}
+		}
+
+		r.Header.Set(BasePathHeader, "/"+endpoint.Name)
+		r.URL.Host = endpoint.Host
+		r.URL.Path = endpoint.Path
+		r.URL.Scheme = "http"
+		r.Host = r.URL.Host
+	}
+
+	return &proxy{
+		Router:   &httputil.ReverseProxy{Director: director},
+		Director: director,
+	}
+}
+
+func (s *srv) indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "OPTIONS" {
 		return
 	}
 
-	services, err := regs.ListServices(regs.ListContext(r.Context()))
+	services, err := s.registry.ListServices(registry.ListContext(r.Context()))
 	if err != nil {
 		logger.Errorf("Error listing services: %v", err)
 	}
@@ -140,13 +178,13 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := templateData{len(webServices) > 0, webServices}
-	render(w, r, indexTemplate, data)
+	s.render(w, r, indexTemplate, data)
 }
 
-func registryHandler(w http.ResponseWriter, r *http.Request) {
+func (s *srv) registryHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func callHandler(w http.ResponseWriter, r *http.Request) {
+func (s *srv) callHandler(w http.ResponseWriter, r *http.Request) {
 
 }

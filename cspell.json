@@ -1,8 +1,10 @@
 {
     "version": "0.1",
     "words": [
+        "ropts",
         "tmpl",
         "urfave",
+        "vpath",
         "webui"
     ]
 }

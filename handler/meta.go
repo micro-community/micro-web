@@ -5,7 +5,6 @@ import (
 
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/client"
-	"github.com/micro/micro/v3/service/errors"
 	"github.com/micro/micro/v3/service/logger"
 	"github.com/micro/micro/v3/service/router"
 )
@@ -20,14 +19,14 @@ func (m *metaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	logger.Info("i'm a meta handler")
 
-	service, err := m.r.Route(r)
-	if err != nil {
-		er := errors.InternalServerError(m.ns, err.Error())
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(500)
-		w.Write([]byte(er.Error()))
-		return
-	}
+	// service, err := m.r.Route(r)
+	// if err != nil {
+	// 	er := errors.InternalServerError(m.ns, err.Error())
+	// 	w.Header().Set("Content-Type", "application/json")
+	// 	w.WriteHeader(500)
+	// 	w.Write([]byte(er.Error()))
+	// 	return
+	// }
 
 }
 

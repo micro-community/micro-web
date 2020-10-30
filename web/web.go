@@ -11,9 +11,11 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/micro-community/micro-webui/namespace"
 	"github.com/micro-community/micro-webui/handler"
+	"github.com/micro-community/micro-webui/namespace"
+	"github.com/micro-community/micro-webui/resolver"
 	"github.com/micro-community/micro-webui/resolver/web"
+	"github.com/micro-community/micro-webui/resolver/path"
 	"github.com/micro/micro/v3/plugin"
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/logger"
@@ -42,6 +44,7 @@ var (
 	Namespace = "micro"
 	Type      = "web"
 	Resolver  = "path"
+	Handler   = "meta"
 	// Base path sent to web service.
 	// This is stripped from the request path
 	// Allows the web service to define absolute paths
@@ -56,7 +59,6 @@ var (
 	Host, _ = os.Hostname()
 )
 
-
 type srv struct {
 	*mux.Router
 	// registry we use
@@ -68,6 +70,7 @@ type srv struct {
 	// the proxy server
 	prx *proxy
 
+	logged bool
 }
 
 type reg struct {
@@ -97,7 +100,6 @@ func resolveContext(ctx *cli.Context) {
 		// backwards compatability
 		Namespace = strings.TrimSuffix(ctx.String("namespace"), "."+Type)
 	}
-
 	// Init plugins
 	for _, p := range plugin.Plugins() {
 		p.Init(ctx)
@@ -130,15 +132,29 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 	r.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		return
 	})
-	r.HandleFunc("/client", callHandler)
-	r.HandleFunc("/services", registryHandler)
-	r.HandleFunc("/service/{name}", registryHandler)
+
+	// resolver options
+	ropts := []resolver.Option{
+		resolver.WithServicePrefix(Namespace),
+		resolver.WithHandler(Handler),
+	}
+
+	rr := path.NewResolver(ropts...)
+
+	//p := s.proxy()
+
+
+	r.HandleFunc("/client", s.callHandler)
+	r.HandleFunc("/services", s.registryHandler)
+	r.HandleFunc("/service/{name}", s.registryHandler)
 	//r.PathPrefix("/{service:[a-zA-Z0-9]+}").Handler(p)
-	r.PathPrefix(APIPath).Handler(handler.Meta(srv, rt, Namespace))
+		r.PathPrefix(APIPath).Handler(handler.Meta(srv, rt, Namespace))
+
+	s.prx = p
 
 }
 
-func render(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}) {
+func (s *srv) render(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}) {
 	t, err := template.New("template").Funcs(template.FuncMap{
 		"format": format,
 		"Title":  strings.Title,
@@ -165,9 +181,10 @@ func render(w http.ResponseWriter, r *http.Request, tmpl string, data interface{
 
 	if c, err := r.Cookie(TokenCookieName); err == nil && c != nil {
 		token := strings.TrimPrefix(c.Value, TokenCookieName+"=")
-		if acc, err := s.auth.Inspect(token); err == nil {
+		//	if acc, err := s.auth.Inspect(token); err == nil {
+		if len(token) > 0 && s.logged {
 			loginTitle = "Account"
-			user = acc.ID
+			//user = acc.ID
 		}
 	}
 
