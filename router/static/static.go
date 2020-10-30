@@ -24,7 +24,7 @@ import (
 	"strings"
 	"sync"
 
-	rutil "github.com/micro-community/micro-webui/registry"
+	rutil "github.com/micro-community/micro-webui/helper/registry"
 	"github.com/micro-community/micro-webui/router"
 	util "github.com/micro-community/micro-webui/router"
 	"github.com/micro/micro/v3/service/api"

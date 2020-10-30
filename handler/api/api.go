@@ -21,7 +21,7 @@ import (
 	"net/http"
 
 	"github.com/micro-community/micro-webui/handler"
-	"github.com/micro-community/micro-webui/ctx"
+	"github.com/micro-community/micro-webui/helper/ctx"
 	"github.com/micro-community/micro-webui/router"
 	api "github.com/micro/micro/v3/proto/api"
 	goapi "github.com/micro/micro/v3/service/api"

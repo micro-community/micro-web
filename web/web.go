@@ -18,6 +18,7 @@ import (
 	"github.com/micro-community/micro-webui/resolver"
 	"github.com/micro-community/micro-webui/resolver/path"
 	"github.com/micro-community/micro-webui/router"
+
 	regRouter "github.com/micro-community/micro-webui/router/registry"
 
 	"github.com/micro/micro/v3/plugin"
@@ -75,38 +76,6 @@ type srv struct {
 	logged bool
 }
 
-type reg struct {
-	registry.Registry
-
-	sync.RWMutex
-	lastPull time.Time
-	services []*registry.Service
-}
-
-func resolveContext(ctx *cli.Context) {
-
-	if len(ctx.String("server_name")) > 0 {
-		Name = ctx.String("server_name")
-	}
-	if len(ctx.String("address")) > 0 {
-		Address = ctx.String("address")
-	}
-	if len(ctx.String("resolver")) > 0 {
-		Resolver = ctx.String("resolver")
-	}
-	if len(ctx.String("type")) > 0 {
-		Type = ctx.String("type")
-	}
-	if len(ctx.String("namespace")) > 0 {
-		// remove the service type from the namespace to allow for
-		// backwards compatability
-		Namespace = strings.TrimSuffix(ctx.String("namespace"), "."+Type)
-	}
-	// Init plugins
-	for _, p := range plugin.Plugins() {
-		p.Init(ctx)
-	}
-}
 
 //Run run micro web
 func Run(ctx *cli.Context, srvOpts ...service.Option) {
@@ -137,9 +106,7 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 	})
 
 	rr := path.NewResolver(resolver.WithServicePrefix(Namespace), resolver.WithHandler(Handler))
-
 	rt := regRouter.NewRouter(router.WithResolver(rr), router.WithRegistry(registry.DefaultRegistry))
-
 	// initialize service
 	srv := service.New(service.Name(Name))
 
@@ -147,9 +114,17 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 	r.HandleFunc("/services", s.registryHandler)
 	r.HandleFunc("/service/{name}", s.registryHandler)
 	//r.PathPrefix("/{service:[a-zA-Z0-9]+}").Handler(p)
-	r.PathPrefix(APIPath).Handler(handler.Meta(srv, rt, Namespace))
+	r.PathPrefix(APIPath).Handler(handler.Meta(srv.Client(), rt, Namespace))
 
-	s.prx = p
+		// register all the http handler plugins
+	for _, p := range plugin.Plugins() {
+		if v := p.Handler(); v != nil {
+			h = v(h)
+		}
+	}
+
+	h = auth.Wrapper(rr, Namespace)(h)
+
 
 }
 

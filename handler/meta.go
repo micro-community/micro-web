@@ -31,9 +31,9 @@ func (m *metaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Meta is a http.Handler that routes based on endpoint metadata
-func Meta(s *service.Service, r router.Router, ns string) http.Handler {
+func Meta(cli client.Client, r router.Router, ns string) http.Handler {
 	return &metaHandler{
-		c:  s.Client(),
+		c:  cli,
 		r:  r,
 		ns: ns,
 	}
