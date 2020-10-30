@@ -7,11 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/micro-community/micro-webui/handler"
+	"github.com/micro-community/micro-webui/helper"
 	"github.com/micro-community/micro-webui/resolver"
 	"github.com/micro-community/micro-webui/resolver/subdomain"
 	"github.com/micro-community/micro-webui/server/cors"
-	"github.com/micro-community/micro-webui/helper"
 	"github.com/micro/micro/v3/service/client"
 	"github.com/micro/micro/v3/service/errors"
 )
@@ -176,6 +175,6 @@ func (h *rpcHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // NewRPCHandler returns an initialized RPC handler
-func NewRPCHandler(r resolver.Resolver) handler.Handler {
+func NewRPCHandler(r resolver.Resolver) Handler {
 	return &rpcHandler{r}
 }

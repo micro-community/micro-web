@@ -3,23 +3,19 @@ package web
 
 import (
 	"fmt"
-	"html/template"
 	"net/http"
 	"os"
-	"strings"
-	"sync"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/urfave/cli/v2"
 
 	"github.com/micro-community/micro-webui/handler"
-	"github.com/micro-community/micro-webui/namespace"
 	"github.com/micro-community/micro-webui/resolver"
 	"github.com/micro-community/micro-webui/resolver/path"
 	"github.com/micro-community/micro-webui/router"
 
 	regRouter "github.com/micro-community/micro-webui/router/registry"
+	httpserver "github.com/micro-community/micro-webui/server/http"
 
 	"github.com/micro/micro/v3/plugin"
 	"github.com/micro/micro/v3/service"
@@ -62,21 +58,6 @@ var (
 	Host, _ = os.Hostname()
 )
 
-type srv struct {
-	*mux.Router
-	// registry we use
-	registry registry.Registry
-	// the resolver
-	resolver *resolver.Resolver
-	// the namespace resolver
-	nsResolver *namespace.Resolver
-	// the proxy server
-	prx *proxy
-
-	logged bool
-}
-
-
 //Run run micro web
 func Run(ctx *cli.Context, srvOpts ...service.Option) {
 
@@ -84,10 +65,9 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 
 	resolveContext(ctx)
 
-	// create the router
-	//	var h http.Handler
+	var h http.Handler
 	r := mux.NewRouter()
-	//	h = r
+	h = r
 
 	logger.Infof("Registering API Web Handler at %s", APIPath)
 
@@ -110,65 +90,41 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 	// initialize service
 	srv := service.New(service.Name(Name))
 
-	r.HandleFunc("/client", s.callHandler)
-	r.HandleFunc("/services", s.registryHandler)
-	r.HandleFunc("/service/{name}", s.registryHandler)
+	// r.HandleFunc("/client", s.callHandler)
+	// r.HandleFunc("/services", s.registryHandler)
+	// r.HandleFunc("/service/{name}", s.registryHandler)
 	//r.PathPrefix("/{service:[a-zA-Z0-9]+}").Handler(p)
-	r.PathPrefix(APIPath).Handler(handler.Meta(srv.Client(), rt, Namespace))
+	r.PathPrefix(APIPath).Handler(handler.NewMetaHandler(srv.Client(), rt, Namespace))
 
-		// register all the http handler plugins
+	// register all the http handler plugins
 	for _, p := range plugin.Plugins() {
 		if v := p.Handler(); v != nil {
 			h = v(h)
 		}
 	}
 
-	h = auth.Wrapper(rr, Namespace)(h)
+	// append the auth wrapper
+	//h = auth.Wrapper(rr, Namespace)(h)
 
+	// create a new api server with wrappers
+	api := httpserver.NewServer(Address)
 
-}
+	// register the handler
+	api.Handle("/", h)
 
-func (s *srv) render(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}) {
-	t, err := template.New("template").Funcs(template.FuncMap{
-		"format": format,
-		"Title":  strings.Title,
-		"First": func(s string) string {
-			if len(s) == 0 {
-				return s
-			}
-			return strings.Title(string(s[0]))
-		},
-	}).Parse(layoutTemplate)
-	if err != nil {
-		http.Error(w, "Error occurred:"+err.Error(), 500)
-		return
-	}
-	t, err = t.Parse(tmpl)
-	if err != nil {
-		http.Error(w, "Error occurred:"+err.Error(), 500)
-		return
+	// Start API
+	if err := api.Start(); err != nil {
+		logger.Fatal(err)
 	}
 
-	// If the user is logged in, render Account instead of Login
-	loginTitle := "Login"
-	user := ""
-
-	if c, err := r.Cookie(TokenCookieName); err == nil && c != nil {
-		token := strings.TrimPrefix(c.Value, TokenCookieName+"=")
-		//	if acc, err := s.auth.Inspect(token); err == nil {
-		if len(token) > 0 && s.logged {
-			loginTitle = "Account"
-			//user = acc.ID
-		}
+	// Run server
+	if err := srv.Run(); err != nil {
+		logger.Fatal(err)
 	}
 
-	if err := t.ExecuteTemplate(w, "layout", map[string]interface{}{
-		"LoginTitle": loginTitle,
-		"LoginURL":   loginURL,
-		"StatsURL":   statsURL,
-		"Results":    data,
-		"User":       user,
-	}); err != nil {
-		http.Error(w, "Error occurred:"+err.Error(), 500)
+	// Stop API
+	if err := api.Stop(); err != nil {
+		logger.Fatal(err)
 	}
+
 }

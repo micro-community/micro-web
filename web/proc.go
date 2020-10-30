@@ -1,17 +1,22 @@
 package web
 
 import (
+	"encoding/json"
 	"fmt"
+	"html/template"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"sort"
 	"strings"
 
-	"github.com/micro-community/micro-webui/resolver"
+	"github.com/gorilla/mux"
 	"github.com/micro/micro/v3/service/logger"
 	"github.com/micro/micro/v3/service/registry"
 	"golang.org/x/net/publicsuffix"
+)
+
+var (
+	logged bool
 )
 
 type webService struct {
@@ -21,7 +26,7 @@ type webService struct {
 }
 
 // ServeHTTP serves the web dashboard and proxies where appropriate
-func (s *srv) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if len(r.URL.Host) == 0 {
 		r.URL.Host = r.Host
 	}
@@ -41,25 +46,6 @@ func (s *srv) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// check again
-	if len(host) == 0 {
-		s.Router.ServeHTTP(w, r)
-		return
-	}
-
-	// check based on host set
-	if len(Host) > 0 && Host == host {
-		s.Router.ServeHTTP(w, r)
-		return
-	}
-
-	// an ip instead of hostname means dashboard
-	ip := net.ParseIP(host)
-	if ip != nil {
-		s.Router.ServeHTTP(w, r)
-		return
-	}
-
 	// namespace matching host means dashboard
 	parts := strings.Split(host, ".")
 	reverse(parts)
@@ -70,70 +56,16 @@ func (s *srv) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		namespace = strings.Replace(namespace, "mu.micro", "go.micro", 1)
 	}
 
-	// web dashboard if namespace matches
-	if namespace == Namespace+"."+Type {
-		s.Router.ServeHTTP(w, r)
-		return
-	}
-
 	// if a host has no subdomain serve dashboard
 	v, err := publicsuffix.EffectiveTLDPlusOne(host)
 	if err != nil || v == host {
-		s.Router.ServeHTTP(w, r)
+
 		return
 	}
 
-	// check if its a web request
-	if _, _, isWeb := s.resolver.Info(r); isWeb {
-		s.Router.ServeHTTP(w, r)
-		return
-	}
-	// otherwise serve the proxy
-	s.prx.ServeHTTP(w, r)
 }
 
-// proxy is a http reverse proxy
-func (s *srv) proxy() *proxy {
-	director := func(r *http.Request) {
-		kill := func() {
-			r.URL.Host = ""
-			r.URL.Path = ""
-			r.URL.Scheme = ""
-			r.Host = ""
-			r.RequestURI = ""
-		}
-
-		// check to see if the endpoint was encoded in the request context
-		// by the auth wrapper
-		var endpoint *resolver.Endpoint
-		if val, ok := (r.Context().Value(resolver.Endpoint{})).(*resolver.Endpoint); ok {
-			endpoint = val
-		}
-
-		// TODO: better error handling
-		var err error
-		if endpoint == nil {
-			if endpoint, err = s.resolver.Resolve(r); err != nil {
-				fmt.Printf("Failed to resolve url: %v: %v\n", r.URL, err)
-				kill()
-				return
-			}
-		}
-
-		r.Header.Set(BasePathHeader, "/"+endpoint.Name)
-		r.URL.Host = endpoint.Host
-		r.URL.Path = endpoint.Path
-		r.URL.Scheme = "http"
-		r.Host = r.URL.Host
-	}
-
-	return &proxy{
-		Router:   &httputil.ReverseProxy{Director: director},
-		Director: director,
-	}
-}
-
-func (s *srv) indexHandler(w http.ResponseWriter, r *http.Request) {
+func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "OPTIONS" {
 		return
@@ -177,13 +109,151 @@ func (s *srv) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := templateData{len(webServices) > 0, webServices}
-	s.render(w, r, indexTemplate, data)
+	render(w, r, indexTemplate, data)
 }
 
-func (s *srv) registryHandler(w http.ResponseWriter, r *http.Request) {
+func registryHandler(w http.ResponseWriter, r *http.Request) {
+
+	vars := mux.Vars(r)
+	svc := vars["name"]
+
+	if len(svc) > 0 {
+		sv, err := s.registry.GetService(svc, registry.GetContext(r.Context()))
+		if err != nil {
+			http.Error(w, "Error occurred:"+err.Error(), 500)
+			return
+		}
+
+		if len(sv) == 0 {
+			http.Error(w, "Not found", 404)
+			return
+		}
+
+		if r.Header.Get("Content-Type") == "application/json" {
+			b, err := json.Marshal(map[string]interface{}{
+				"services": s,
+			})
+			if err != nil {
+				http.Error(w, "Error occurred:"+err.Error(), 500)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(b)
+			return
+		}
+
+		s.render(w, r, serviceTemplate, sv)
+		return
+	}
+
+	services, err := s.registry.ListServices(registry.ListContext(r.Context()))
+	if err != nil {
+		logger.Errorf("Error listing services: %v", err)
+	}
+
+	sort.Sort(sortedServices{services})
+
+	if r.Header.Get("Content-Type") == "application/json" {
+		b, err := json.Marshal(map[string]interface{}{
+			"services": services,
+		})
+		if err != nil {
+			http.Error(w, "Error occurred:"+err.Error(), 500)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(b)
+		return
+	}
+
+	s.render(w, r, registryTemplate, services)
 
 }
 
-func (s *srv) callHandler(w http.ResponseWriter, r *http.Request) {
+func callHandler(w http.ResponseWriter, r *http.Request) {
 
+	services, err := s.registry.ListServices(registry.ListContext(r.Context()))
+	if err != nil {
+		logger.Errorf("Error listing services: %v", err)
+	}
+
+	sort.Sort(sortedServices{services})
+
+	serviceMap := make(map[string][]*registry.Endpoint)
+	for _, service := range services {
+		if len(service.Endpoints) > 0 {
+			serviceMap[service.Name] = service.Endpoints
+			continue
+		}
+		// lookup the endpoints otherwise
+		s, err := s.registry.GetService(service.Name, registry.GetContext(r.Context()))
+		if err != nil {
+			continue
+		}
+		if len(s) == 0 {
+			continue
+		}
+		serviceMap[service.Name] = s[0].Endpoints
+	}
+
+	if r.Header.Get("Content-Type") == "application/json" {
+		b, err := json.Marshal(map[string]interface{}{
+			"services": services,
+		})
+		if err != nil {
+			http.Error(w, "Error occurred:"+err.Error(), 500)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(b)
+		return
+	}
+
+	s.render(w, r, callTemplate, serviceMap)
+
+}
+
+func render(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}) {
+	t, err := template.New("template").Funcs(template.FuncMap{
+		"format": format,
+		"Title":  strings.Title,
+		"First": func(s string) string {
+			if len(s) == 0 {
+				return s
+			}
+			return strings.Title(string(s[0]))
+		},
+	}).Parse(layoutTemplate)
+	if err != nil {
+		http.Error(w, "Error occurred:"+err.Error(), 500)
+		return
+	}
+	t, err = t.Parse(tmpl)
+	if err != nil {
+		http.Error(w, "Error occurred:"+err.Error(), 500)
+		return
+	}
+
+	// If the user is logged in, render Account instead of Login
+	loginTitle := "Login"
+	user := ""
+
+	if c, err := r.Cookie(TokenCookieName); err == nil && c != nil {
+		token := strings.TrimPrefix(c.Value, TokenCookieName+"=")
+		//	if acc, err := s.auth.Inspect(token); err == nil {
+		if len(token) > 0 && logged {
+			loginTitle = "Account"
+			//user = acc.ID
+		}
+	}
+
+	if err := t.ExecuteTemplate(w, "layout", map[string]interface{}{
+		"LoginTitle": loginTitle,
+		"LoginURL":   loginURL,
+		"StatsURL":   statsURL,
+		"Results":    data,
+		"User":       user,
+	}); err != nil {
+		http.Error(w, "Error occurred:"+err.Error(), 500)
+	}
 }
