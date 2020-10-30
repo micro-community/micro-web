@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/micro-community/micro-webui/namespace"
 	"github.com/micro-community/micro-webui/handler"
+	"github.com/micro-community/micro-webui/resolver/web"
 	"github.com/micro/micro/v3/plugin"
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/logger"
@@ -54,9 +56,18 @@ var (
 	Host, _ = os.Hostname()
 )
 
+
 type srv struct {
 	*mux.Router
+	// registry we use
+	registry registry.Registry
+	// the resolver
+	resolver *web.Resolver
+	// the namespace resolver
+	nsResolver *namespace.Resolver
 	// the proxy server
+	prx *proxy
+
 }
 
 type reg struct {
@@ -67,10 +78,7 @@ type reg struct {
 	services []*registry.Service
 }
 
-//Run run micro web
-func Run(ctx *cli.Context, srvOpts ...service.Option) {
-
-	logger.Init(logger.WithFields(map[string]interface{}{"service": "web"}))
+func resolveContext(ctx *cli.Context) {
 
 	if len(ctx.String("server_name")) > 0 {
 		Name = ctx.String("server_name")
@@ -94,7 +102,15 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 	for _, p := range plugin.Plugins() {
 		p.Init(ctx)
 	}
-	// initialise service
+}
+
+//Run run micro web
+func Run(ctx *cli.Context, srvOpts ...service.Option) {
+
+	logger.Init(logger.WithFields(map[string]interface{}{"service": "web"}))
+
+	resolveContext(ctx)
+	// initialize service
 	srv := service.New(service.Name(Name))
 	// create the router
 	//	var h http.Handler
