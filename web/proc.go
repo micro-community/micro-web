@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/micro-community/micro-webui/resolver"
-	"github.com/micro/micro/v3/service/registry"
 	"github.com/micro/micro/v3/service/logger"
+	"github.com/micro/micro/v3/service/registry"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -91,7 +91,6 @@ func (s *srv) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// otherwise serve the proxy
 	s.prx.ServeHTTP(w, r)
 }
-
 
 // proxy is a http reverse proxy
 func (s *srv) proxy() *proxy {

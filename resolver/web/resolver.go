@@ -3,6 +3,7 @@ package web
 import (
 	"errors"
 	"math/rand"
+	"net"
 	"net/http"
 	"regexp"
 	"strings"
@@ -76,4 +77,64 @@ func (r *Resolver) Resolve(req *http.Request, opts ...resolver.ResolveOption) (*
 		Path:   "/" + strings.Join(parts[2:], "/"),
 		Domain: options.Domain,
 	}, nil
+}
+
+// NewResolver creates a new micro resolver
+func NewResolver(opts ...resolver.Option) resolver.Resolver {
+	return &Resolver{Options: resolver.NewOptions(opts...)}
+}
+
+// Info checks whether this is a web request.
+// It returns host, namespace and whether its internal
+func (r *Resolver) Info(req *http.Request) (string, string, bool) {
+	// set to host
+	host := req.URL.Hostname()
+
+	// set as req.Host if blank
+	if len(host) == 0 {
+		host = req.Host
+	}
+
+	// split out ip
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+
+	// determine the namespace of the request
+	namespace := r.Namespace(req)
+
+	// overide host if the namespace is go.micro.web, since
+	// this will also catch localhost & 127.0.0.1, resulting
+	// in a more consistent dev experience
+	if host == "localhost" || host == "127.0.0.1" {
+		host = "dev.m3o.org"
+	}
+
+	// if the type is path, always resolve using the path
+	if r.Type == "path" {
+		return host, namespace, true
+	}
+
+	// if the namespace is not the default (go.micro.web),
+	// we always resolve using path
+	if namespace != defaultNamespace {
+		return host, namespace, true
+	}
+
+	// check for micro subdomains, we want to do subdomain routing
+	// on these if the subdomoain routing has been specified
+	if r.Type == "subdomain" && host != "dev.m3o.org" && strings.HasSuffix(host, ".m3o.org") {
+		return host, namespace, false
+	}
+
+	// Check for services info path, also handled by micro web but
+	// not a top level path. TODO: Find a better way of detecting and
+	// handling the non-proxied paths.
+	if strings.HasPrefix(req.URL.Path, "/service/") {
+		return host, namespace, true
+	}
+
+	// Check if the request is a top level path
+	isWeb := strings.Count(req.URL.Path, "/") == 1
+	return host, namespace, isWeb
 }

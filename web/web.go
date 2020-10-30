@@ -14,13 +14,12 @@ import (
 	"github.com/micro-community/micro-webui/handler"
 	"github.com/micro-community/micro-webui/namespace"
 	"github.com/micro-community/micro-webui/resolver"
-	"github.com/micro-community/micro-webui/resolver/web"
 	"github.com/micro-community/micro-webui/resolver/path"
+	"github.com/micro-community/micro-webui/resolver/web"
 	"github.com/micro/micro/v3/plugin"
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/logger"
 	"github.com/micro/micro/v3/service/registry"
-	regRouter "github.com/micro/micro/v3/service/router/registry"
 	"github.com/urfave/cli/v2"
 )
 
@@ -119,7 +118,7 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 	r := mux.NewRouter()
 	//	h = r
 
-	rt := regRouter.NewRouter()
+	//rt := regRouter.NewRouter()
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "OPTIONS" {
@@ -141,14 +140,26 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 
 	rr := path.NewResolver(ropts...)
 
-	//p := s.proxy()
+	 log.Infof("Registering API Web Handler at %s", APIPath)
+	rt := regRouter.NewRouter(
+			router.WithHandler(web.Handler),
+			router.WithResolver(rr),
+			router.WithRegistry(muregistry.DefaultRegistry),
+		)
 
+			w := web.NewHandler(
+			ahandler.WithNamespace(Namespace),
+			ahandler.WithRouter(rt),
+			ahandler.WithClient(srv.Client()),
+		)
+		r.PathPrefix(APIPath).Handler(w)
+	//p := s.proxy()
 
 	r.HandleFunc("/client", s.callHandler)
 	r.HandleFunc("/services", s.registryHandler)
 	r.HandleFunc("/service/{name}", s.registryHandler)
 	//r.PathPrefix("/{service:[a-zA-Z0-9]+}").Handler(p)
-		r.PathPrefix(APIPath).Handler(handler.Meta(srv, rt, Namespace))
+	r.PathPrefix(APIPath).Handler(handler.Meta(srv, rt, Namespace))
 
 	s.prx = p
 
