@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"sort"
 	"strings"
@@ -23,7 +24,76 @@ var (
 
 // ServeHTTP serves the web dashboard and proxies where appropriate
 func ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if len(r.URL.Host) == 0 {
+		r.URL.Host = r.Host
+	}
 
+	if len(r.URL.Scheme) == 0 {
+		r.URL.Scheme = "http"
+	}
+
+	// no host means dashboard
+	host := r.URL.Hostname()
+	if len(host) == 0 {
+		h, _, err := net.SplitHostPort(r.Host)
+		if err != nil && strings.Contains(err.Error(), "missing port in address") {
+			host = r.Host
+		} else if err == nil {
+			host = h
+		}
+	}
+
+	// check again
+	if len(host) == 0 {
+		s.Router.ServeHTTP(w, r)
+		return
+	}
+
+	// check based on host set
+	if len(Host) > 0 && Host == host {
+		s.Router.ServeHTTP(w, r)
+		return
+	}
+
+	// an ip instead of hostname means dashboard
+	ip := net.ParseIP(host)
+	if ip != nil {
+		s.Router.ServeHTTP(w, r)
+		return
+	}
+
+	// namespace matching host means dashboard
+	parts := strings.Split(host, ".")
+	reverse(parts)
+	namespace := strings.Join(parts, ".")
+
+	// replace mu since we know its ours
+	if strings.HasPrefix(namespace, "mu.micro") {
+		namespace = strings.Replace(namespace, "mu.micro", "go.micro", 1)
+	}
+
+	// web dashboard if namespace matches
+	if namespace == Namespace+"."+Type {
+		s.Router.ServeHTTP(w, r)
+		return
+	}
+
+	// if a host has no subdomain serve dashboard
+	v, err := publicsuffix.EffectiveTLDPlusOne(host)
+	if err != nil || v == host {
+		s.Router.ServeHTTP(w, r)
+		return
+	}
+
+	// check if its a web request
+	if _, _, isWeb := s.resolver.Info(r); isWeb {
+		s.Router.ServeHTTP(w, r)
+		return
+	}
+
+	return
+	// otherwise serve the proxy
+	//s.prx.ServeHTTP(w, r)
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -70,7 +140,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := templateData{len(webServices) > 0, webServices}
-	s.render(w, r, indexTemplate, data)
+	render(w, r, indexTemplate, data)
 }
 
 func registryHandler(w http.ResponseWriter, r *http.Request) {

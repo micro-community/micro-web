@@ -6,6 +6,7 @@ import (
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/client"
 	"github.com/micro/micro/v3/service/errors"
+	"github.com/micro/micro/v3/service/logger"
 	"github.com/micro/micro/v3/service/router"
 )
 
@@ -16,6 +17,9 @@ type metaHandler struct {
 }
 
 func (m *metaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	logger.Info("i'm a meta handler")
+
 	service, err := m.r.Route(r)
 	if err != nil {
 		er := errors.InternalServerError(m.ns, err.Error())

@@ -26,7 +26,6 @@ func main() {
 }
 
 func prepareSomething() error {
-	// closer
 
 	return nil
 }

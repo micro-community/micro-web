@@ -3,11 +3,11 @@ package web
 
 import (
 	"fmt"
+	"html/template"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
-	"text/template"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -18,6 +18,13 @@ import (
 	"github.com/micro/micro/v3/service/registry"
 	regRouter "github.com/micro/micro/v3/service/router/registry"
 	"github.com/urfave/cli/v2"
+)
+
+const (
+	// BearerScheme used for Authorization header
+	BearerScheme = "Bearer "
+	// TokenCookieName is the name of the cookie which stores the auth token
+	TokenCookieName = "micro-token"
 )
 
 //Meta Fields of micro web
@@ -115,8 +122,6 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 
 }
 
-
-
 func render(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}) {
 	t, err := template.New("template").Funcs(template.FuncMap{
 		"format": format,
@@ -142,8 +147,8 @@ func render(w http.ResponseWriter, r *http.Request, tmpl string, data interface{
 	loginTitle := "Login"
 	user := ""
 
-	if c, err := r.Cookie(inauth.TokenCookieName); err == nil && c != nil {
-		token := strings.TrimPrefix(c.Value, inauth.TokenCookieName+"=")
+	if c, err := r.Cookie(TokenCookieName); err == nil && c != nil {
+		token := strings.TrimPrefix(c.Value, TokenCookieName+"=")
 		if acc, err := s.auth.Inspect(token); err == nil {
 			loginTitle = "Account"
 			user = acc.ID
