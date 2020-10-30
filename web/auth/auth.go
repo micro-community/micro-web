@@ -3,11 +3,13 @@ package auth
 import (
 	"context"
 	"strings"
-	"github.com/micro/micro/v3/service/errors"
+
+	"github.com/micro-community/micro-webui/namespace"
+
 	"github.com/micro/micro/v3/service/auth"
+	"github.com/micro/micro/v3/service/context/metadata"
+	"github.com/micro/micro/v3/service/errors"
 	"github.com/micro/micro/v3/service/server"
-	"github.com/micro/micro/v3/service/namespace"
-	"github.com/micro/service/v3/context/metadata"
 )
 
 const (
@@ -17,6 +19,7 @@ const (
 	TokenCookieName = "micro-token"
 )
 
+//NewAuthHandlerWrapper for auth of web
 func NewAuthHandlerWrapper() server.HandlerWrapper {
 
 	return func(h server.HandlerFunc) server.HandlerFunc {
