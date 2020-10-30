@@ -11,16 +11,19 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/urfave/cli/v2"
+
 	"github.com/micro-community/micro-webui/handler"
 	"github.com/micro-community/micro-webui/namespace"
 	"github.com/micro-community/micro-webui/resolver"
 	"github.com/micro-community/micro-webui/resolver/path"
-	"github.com/micro-community/micro-webui/resolver/web"
+	"github.com/micro-community/micro-webui/router"
+	regRouter "github.com/micro-community/micro-webui/router/registry"
+
 	"github.com/micro/micro/v3/plugin"
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/logger"
 	"github.com/micro/micro/v3/service/registry"
-	"github.com/urfave/cli/v2"
 )
 
 const (
@@ -63,7 +66,7 @@ type srv struct {
 	// registry we use
 	registry registry.Registry
 	// the resolver
-	resolver *web.Resolver
+	resolver *resolver.Resolver
 	// the namespace resolver
 	nsResolver *namespace.Resolver
 	// the proxy server
@@ -111,12 +114,13 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 	logger.Init(logger.WithFields(map[string]interface{}{"service": "web"}))
 
 	resolveContext(ctx)
-	// initialize service
-	srv := service.New(service.Name(Name))
+
 	// create the router
 	//	var h http.Handler
 	r := mux.NewRouter()
 	//	h = r
+
+	logger.Infof("Registering API Web Handler at %s", APIPath)
 
 	//rt := regRouter.NewRouter()
 
@@ -132,28 +136,12 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 		return
 	})
 
-	// resolver options
-	ropts := []resolver.Option{
-		resolver.WithServicePrefix(Namespace),
-		resolver.WithHandler(Handler),
-	}
+	rr := path.NewResolver(resolver.WithServicePrefix(Namespace), resolver.WithHandler(Handler))
 
-	rr := path.NewResolver(ropts...)
+	rt := regRouter.NewRouter(router.WithResolver(rr), router.WithRegistry(registry.DefaultRegistry))
 
-	 log.Infof("Registering API Web Handler at %s", APIPath)
-	rt := regRouter.NewRouter(
-			router.WithHandler(web.Handler),
-			router.WithResolver(rr),
-			router.WithRegistry(muregistry.DefaultRegistry),
-		)
-
-			w := web.NewHandler(
-			ahandler.WithNamespace(Namespace),
-			ahandler.WithRouter(rt),
-			ahandler.WithClient(srv.Client()),
-		)
-		r.PathPrefix(APIPath).Handler(w)
-	//p := s.proxy()
+	// initialize service
+	srv := service.New(service.Name(Name))
 
 	r.HandleFunc("/client", s.callHandler)
 	r.HandleFunc("/services", s.registryHandler)
