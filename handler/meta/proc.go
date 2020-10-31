@@ -1,4 +1,4 @@
-package web
+package meta
 
 import (
 	"encoding/json"
@@ -13,6 +13,8 @@ import (
 	"github.com/micro/micro/v3/service/logger"
 	"github.com/micro/micro/v3/service/registry"
 	"golang.org/x/net/publicsuffix"
+
+	utils	"github.com/micro-community/micro-webui/helper/registry"
 )
 
 var (
@@ -65,7 +67,7 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func indexHandler(w http.ResponseWriter, r *http.Request) {
+func (m *metaHandler) indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "OPTIONS" {
 		return
@@ -112,7 +114,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	render(w, r, indexTemplate, data)
 }
 
-func registryHandler(w http.ResponseWriter, r *http.Request) {
+func (m *metaHandler) RegistryHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	svc := vars["name"]
@@ -142,7 +144,7 @@ func registryHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		s.render(w, r, serviceTemplate, sv)
+		render(w, r, serviceTemplate, sv)
 		return
 	}
 
@@ -151,7 +153,7 @@ func registryHandler(w http.ResponseWriter, r *http.Request) {
 		logger.Errorf("Error listing services: %v", err)
 	}
 
-	sort.Sort(sortedServices{services})
+	sort.Sort(utils.SortedServices{services})
 
 	if r.Header.Get("Content-Type") == "application/json" {
 		b, err := json.Marshal(map[string]interface{}{
@@ -166,18 +168,18 @@ func registryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.render(w, r, registryTemplate, services)
+	render(w, r, registryTemplate, services)
 
 }
 
-func callHandler(w http.ResponseWriter, r *http.Request) {
+func (m *metaHandler) CallHandler(w http.ResponseWriter, r *http.Request) {
 
 	services, err := s.registry.ListServices(registry.ListContext(r.Context()))
 	if err != nil {
 		logger.Errorf("Error listing services: %v", err)
 	}
 
-	sort.Sort(sortedServices{services})
+	sort.Sort(utils.SortedServices{services})
 
 	serviceMap := make(map[string][]*registry.Endpoint)
 	for _, service := range services {
@@ -213,7 +215,7 @@ func callHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func render(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}) {
+func (m *metaHandler) render(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}) {
 	t, err := template.New("template").Funcs(template.FuncMap{
 		"format": format,
 		"Title":  strings.Title,

@@ -1,4 +1,4 @@
-// Copyright 2020 Asim Aslam
+// Copyright 2020 crazybber
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// Original source: github.com/micro/go-micro/v3/api/server/server.go
+// Original source: github.com/micro/micro/v3/internal/api/server/server.go
 
 package server
 

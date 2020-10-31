@@ -69,7 +69,7 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 	r := mux.NewRouter()
 	h = r
 
-	logger.Infof("Registering API Web Handler at %s", APIPath)
+	logger.Infof("Registering API & Web Handler at %s", APIPath)
 
 	//rt := regRouter.NewRouter()
 
@@ -87,14 +87,17 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 
 	rr := path.NewResolver(resolver.WithServicePrefix(Namespace), resolver.WithHandler(Handler))
 	rt := regRouter.NewRouter(router.WithResolver(rr), router.WithRegistry(registry.DefaultRegistry))
-	// initialize service
-	srv := service.New(service.Name(Name))
+	// // initialize service
+	// srv := service.New(service.Name(Name))
 
-	// r.HandleFunc("/client", s.callHandler)
-	// r.HandleFunc("/services", s.registryHandler)
-	// r.HandleFunc("/service/{name}", s.registryHandler)
+	mh :=meta.NewMetaHandler(srv.Client(), rt, Namespace)
+
+	r.HandleFunc("/client", mh.CallHandler)
+	r.HandleFunc("/services", mh.RegistryHandler)
+	r.HandleFunc("/service/{name}", mh.RegistryHandler)
 	//r.PathPrefix("/{service:[a-zA-Z0-9]+}").Handler(p)
-	r.PathPrefix(APIPath).Handler(meta.NewMetaHandler(srv.Client(), rt, Namespace))
+
+	r.PathPrefix(APIPath).Handler(mh)
 
 	// register all the http handler plugins
 	for _, p := range plugin.Plugins() {

@@ -1,4 +1,4 @@
-package web
+package registry
 
 import (
 	"fmt"
@@ -8,7 +8,8 @@ import (
 	"github.com/serenize/snaker"
 )
 
-func format(v *registry.Value) string {
+//Format  registry
+func Format(v *registry.Value) string {
 	if v == nil || len(v.Values) == 0 {
 		return "{}"
 	}
