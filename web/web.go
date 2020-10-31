@@ -130,11 +130,10 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 
 }
 
-
-	s.HandleFunc("/favicon.ico", faviconHandler)
-	s.HandleFunc("/client", s.callHandler)
-	s.HandleFunc("/services", s.registryHandler)
-	s.HandleFunc("/service/{name}", s.registryHandler)
-	s.HandleFunc("/rpc", handler.RPC)
-	s.PathPrefix("/{service:[a-zA-Z0-9]+}").Handler(p)
-	s.HandleFunc("/", s.indexHandler)
+// s.HandleFunc("/favicon.ico", faviconHandler)
+// s.HandleFunc("/client", s.callHandler)
+// s.HandleFunc("/services", s.registryHandler)
+// s.HandleFunc("/service/{name}", s.registryHandler)
+// s.HandleFunc("/rpc", handler.RPC)
+// s.PathPrefix("/{service:[a-zA-Z0-9]+}").Handler(p)
+// s.HandleFunc("/", s.indexHandler)

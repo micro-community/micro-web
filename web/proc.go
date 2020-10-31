@@ -17,10 +17,10 @@ import (
 	utils "github.com/micro-community/micro-webui/helper/registry"
 )
 
-type srvWeb struct(
-	registry *registry.Registry
-	logged bool
-)
+type srvWeb struct {
+	registry registry.Registry
+	logged   bool
+}
 
 type webService struct {
 	Name string
@@ -118,7 +118,7 @@ func (s *srvWeb) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := templateData{len(webServices) > 0, webServices}
-	m.render(w, r, indexTemplate, data)
+	s.render(w, r, indexTemplate, data)
 }
 
 func (s *srvWeb) RegistryHandler(w http.ResponseWriter, r *http.Request) {
@@ -151,7 +151,7 @@ func (s *srvWeb) RegistryHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		render(w, r, serviceTemplate, sv)
+		s.render(w, r, serviceTemplate, sv)
 		return
 	}
 
@@ -160,7 +160,7 @@ func (s *srvWeb) RegistryHandler(w http.ResponseWriter, r *http.Request) {
 		logger.Errorf("Error listing services: %v", err)
 	}
 
-	sort.Sort(utils.SortedServices{services})
+	sort.Sort(utils.SortedServices{Services: services})
 
 	if r.Header.Get("Content-Type") == "application/json" {
 		b, err := json.Marshal(map[string]interface{}{
@@ -224,7 +224,7 @@ func (s *srvWeb) CallHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *srvWeb) render(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}) {
 	t, err := template.New("template").Funcs(template.FuncMap{
-		"format": format,
+		"format": utils.Format,
 		"Title":  strings.Title,
 		"First": func(s string) string {
 			if len(s) == 0 {
@@ -250,7 +250,7 @@ func (s *srvWeb) render(w http.ResponseWriter, r *http.Request, tmpl string, dat
 	if c, err := r.Cookie(TokenCookieName); err == nil && c != nil {
 		token := strings.TrimPrefix(c.Value, TokenCookieName+"=")
 		//	if acc, err := s.auth.Inspect(token); err == nil {
-		if len(token) > 0 && logged {
+		if len(token) > 0 && s.logged {
 			loginTitle = "Account"
 			//user = acc.ID
 		}

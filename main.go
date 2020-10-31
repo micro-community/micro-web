@@ -18,12 +18,12 @@ func main() {
 		return prepareSomething()
 	}))
 
-
 	server.DefaultServer = mock.NewServer(server.WrapHandler(auth.NewAuthHandlerWrapper()))
 
 	if err := cmd.DefaultCmd.Run(); err != nil {
 		logger.Fatal(err)
 	}
+
 }
 
 func prepareSomething() error {
