@@ -15,7 +15,7 @@ import (
 	"github.com/micro-community/micro-webui/router"
 
 	regRouter "github.com/micro-community/micro-webui/router/registry"
-	httpserver "github.com/micro-community/micro-webui/server/http"
+	"github.com/micro-community/micro-webui/server/httpweb"
 
 	"github.com/micro/micro/v3/plugin"
 	"github.com/micro/micro/v3/service"
@@ -59,11 +59,11 @@ var (
 )
 
 //Run run micro web
-func Run(ctx *cli.Context, srvOpts ...service.Option) {
+func Run(ctx *cli.Context, opts ...service.Option) {
 
 	logger.Init(logger.WithFields(map[string]interface{}{"service": "web"}))
 
-	resolveContext(ctx)
+	ResolveContext(ctx)
 
 	var h http.Handler
 	r := mux.NewRouter()
@@ -87,7 +87,7 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 
 	rr := path.NewResolver(resolver.WithServicePrefix(Namespace), resolver.WithHandler(Handler))
 	rt := regRouter.NewRouter(router.WithResolver(rr), router.WithRegistry(registry.DefaultRegistry))
-	// // initialize service
+	// initialize service
 	srv := service.New(service.Name(Name))
 	s := new(srvWeb)
 	r.HandleFunc("/client", s.CallHandler)
@@ -108,23 +108,13 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 	//h = auth.Wrapper(rr, Namespace)(h)
 
 	// create a new api server with wrappers
-	api := httpserver.NewServer(Address)
+	api := httpweb.NewServer(Address)
 
 	// register the handler
 	api.Handle("/", h)
 
 	// Start API
 	if err := api.Start(); err != nil {
-		logger.Fatal(err)
-	}
-
-	// // Run server
-	// if err := srv.Run(); err != nil {
-	// 	logger.Fatal(err)
-	// }
-
-	// Stop API
-	if err := api.Stop(); err != nil {
 		logger.Fatal(err)
 	}
 

@@ -14,7 +14,7 @@
 //
 // Original source: github.com/micro/go-micro/v3/api/server/http/http_test.go
 
-package http
+package httpweb
 
 import (
 	"fmt"

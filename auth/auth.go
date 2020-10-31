@@ -81,7 +81,7 @@ func NewAuthHandlerWrapper() server.HandlerWrapper {
 				return errors.InternalServerError(req.Service(), "Error authorizing request: %v", err)
 			}
 
-			// The user is authorised, allow the call
+			// The user is authorized, allow the call
 			return h(ctx, req, rsp)
 		}
 	}

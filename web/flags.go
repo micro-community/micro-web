@@ -8,7 +8,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func resolveContext(ctx *cli.Context) {
+//ResolveContext for web
+func ResolveContext(ctx *cli.Context) {
 
 	if len(ctx.String("server_name")) > 0 {
 		Name = ctx.String("server_name")
@@ -26,10 +27,6 @@ func resolveContext(ctx *cli.Context) {
 		// remove the service type from the namespace to allow for
 		// backwards compatability
 		Namespace = strings.TrimSuffix(ctx.String("namespace"), "."+Type)
-	}
-	// Init plugins
-	for _, p := range plugin.Plugins() {
-		p.Init(ctx)
 	}
 }
 

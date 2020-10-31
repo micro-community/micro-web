@@ -15,7 +15,7 @@
 // Original source: github.com/micro/go-micro/v3/api/server/http/http.go
 
 // Package http provides a http server with features; acme, cors, etc
-package http
+package httpweb
 
 import (
 	"crypto/tls"
