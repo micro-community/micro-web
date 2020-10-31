@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/urfave/cli/v2"
 
-	"github.com/micro-community/micro-webui/handler"
+	"github.com/micro-community/micro-webui/handler/meta"
 	"github.com/micro-community/micro-webui/resolver"
 	"github.com/micro-community/micro-webui/resolver/path"
 	"github.com/micro-community/micro-webui/router"
@@ -94,7 +94,7 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 	// r.HandleFunc("/services", s.registryHandler)
 	// r.HandleFunc("/service/{name}", s.registryHandler)
 	//r.PathPrefix("/{service:[a-zA-Z0-9]+}").Handler(p)
-	r.PathPrefix(APIPath).Handler(handler.NewMetaHandler(srv.Client(), rt, Namespace))
+	r.PathPrefix(APIPath).Handler(meta.NewMetaHandler(srv.Client(), rt, Namespace))
 
 	// register all the http handler plugins
 	for _, p := range plugin.Plugins() {
