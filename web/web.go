@@ -88,16 +88,14 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 	rr := path.NewResolver(resolver.WithServicePrefix(Namespace), resolver.WithHandler(Handler))
 	rt := regRouter.NewRouter(router.WithResolver(rr), router.WithRegistry(registry.DefaultRegistry))
 	// // initialize service
-	// srv := service.New(service.Name(Name))
-
-	mh :=meta.NewMetaHandler(srv.Client(), rt, Namespace)
-
-	r.HandleFunc("/client", mh.CallHandler)
-	r.HandleFunc("/services", mh.RegistryHandler)
-	r.HandleFunc("/service/{name}", mh.RegistryHandler)
+	srv := service.New(service.Name(Name))
+	s := new(srvWeb)
+	r.HandleFunc("/client", s.CallHandler)
+	r.HandleFunc("/services", s.RegistryHandler)
+	r.HandleFunc("/service/{name}", s.RegistryHandler)
 	//r.PathPrefix("/{service:[a-zA-Z0-9]+}").Handler(p)
 
-	r.PathPrefix(APIPath).Handler(mh)
+	r.PathPrefix(APIPath).Handler(meta.NewMetaHandler(srv.Client(), rt, Namespace))
 
 	// register all the http handler plugins
 	for _, p := range plugin.Plugins() {
@@ -120,10 +118,10 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 		logger.Fatal(err)
 	}
 
-	// Run server
-	if err := srv.Run(); err != nil {
-		logger.Fatal(err)
-	}
+	// // Run server
+	// if err := srv.Run(); err != nil {
+	// 	logger.Fatal(err)
+	// }
 
 	// Stop API
 	if err := api.Stop(); err != nil {
@@ -131,3 +129,12 @@ func Run(ctx *cli.Context, srvOpts ...service.Option) {
 	}
 
 }
+
+
+	s.HandleFunc("/favicon.ico", faviconHandler)
+	s.HandleFunc("/client", s.callHandler)
+	s.HandleFunc("/services", s.registryHandler)
+	s.HandleFunc("/service/{name}", s.registryHandler)
+	s.HandleFunc("/rpc", handler.RPC)
+	s.PathPrefix("/{service:[a-zA-Z0-9]+}").Handler(p)
+	s.HandleFunc("/", s.indexHandler)

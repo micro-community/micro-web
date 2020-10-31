@@ -1,4 +1,4 @@
-package meta
+package web
 
 import (
 	"encoding/json"
@@ -14,10 +14,11 @@ import (
 	"github.com/micro/micro/v3/service/registry"
 	"golang.org/x/net/publicsuffix"
 
-	utils	"github.com/micro-community/micro-webui/helper/registry"
+	utils "github.com/micro-community/micro-webui/helper/registry"
 )
 
-var (
+type srvWeb struct(
+	registry *registry.Registry
 	logged bool
 )
 
@@ -25,6 +26,12 @@ type webService struct {
 	Name string
 	Link string
 	Icon string // TODO: lookup icon
+}
+
+func reverse(s []string) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
 }
 
 // ServeHTTP serves the web dashboard and proxies where appropriate
@@ -67,7 +74,7 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (m *metaHandler) indexHandler(w http.ResponseWriter, r *http.Request) {
+func (s *srvWeb) indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "OPTIONS" {
 		return
@@ -111,10 +118,10 @@ func (m *metaHandler) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := templateData{len(webServices) > 0, webServices}
-	render(w, r, indexTemplate, data)
+	m.render(w, r, indexTemplate, data)
 }
 
-func (m *metaHandler) RegistryHandler(w http.ResponseWriter, r *http.Request) {
+func (s *srvWeb) RegistryHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	svc := vars["name"]
@@ -168,11 +175,11 @@ func (m *metaHandler) RegistryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	render(w, r, registryTemplate, services)
+	s.render(w, r, registryTemplate, services)
 
 }
 
-func (m *metaHandler) CallHandler(w http.ResponseWriter, r *http.Request) {
+func (s *srvWeb) CallHandler(w http.ResponseWriter, r *http.Request) {
 
 	services, err := s.registry.ListServices(registry.ListContext(r.Context()))
 	if err != nil {
@@ -215,7 +222,7 @@ func (m *metaHandler) CallHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (m *metaHandler) render(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}) {
+func (s *srvWeb) render(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}) {
 	t, err := template.New("template").Funcs(template.FuncMap{
 		"format": format,
 		"Title":  strings.Title,
