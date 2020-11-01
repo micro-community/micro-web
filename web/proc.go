@@ -17,11 +17,6 @@ import (
 	utils "github.com/micro-community/micro-webui/helper/registry"
 )
 
-type srvWeb struct {
-	registry registry.Registry
-	logged   bool
-}
-
 type webService struct {
 	Name string
 	Link string
@@ -35,7 +30,7 @@ func reverse(s []string) {
 }
 
 // ServeHTTP serves the web dashboard and proxies where appropriate
-func ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *srvWeb) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if len(r.URL.Host) == 0 {
 		r.URL.Host = r.Host
 	}
@@ -186,7 +181,7 @@ func (s *srvWeb) CallHandler(w http.ResponseWriter, r *http.Request) {
 		logger.Errorf("Error listing services: %v", err)
 	}
 
-	sort.Sort(utils.SortedServices{services})
+	sort.Sort(utils.SortedServices{Services: services})
 
 	serviceMap := make(map[string][]*registry.Endpoint)
 	for _, service := range services {

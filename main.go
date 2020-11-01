@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/micro-community/micro-webui/auth"
-	"github.com/micro-community/micro-webui/server/httpweb"
 	"github.com/micro-community/micro-webui/web"
 	"github.com/micro/micro/v3/cmd"
 	"github.com/micro/micro/v3/service"
@@ -12,45 +11,37 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-//Meta Fields of micro web
-var (
-	// Default server name
-	Name = "web"
-	// Default address to bind to
-	Address = ":80"
-	// The namespace to serve
-	// Example:
-	// Namespace + /[Service]/foo/bar
-	// Host: Namespace.Service Endpoint: /foo/bar
-	Namespace = "micro"
-	Type      = "web"
-	Resolver  = "path"
-	Handler   = "meta"
-)
 
 func main() {
 
-	//register new cmds
-	cmd.Register(web.Commands()...)
+	//register new flags
+	cmd.Flags(web.Flags()...)
 
-	cmd.DefaultCmd.Init(cmd.Before(func(ctx *cli.Context) error {
+	before := func(ctx *cli.Context) error {
+		web.ResolveContext(ctx)
 		return nil
-	}))
+	}
 
-	srv := service.New(service.Name(Name))
+	cmd.DefaultCmd.Init(cmd.Before(before))
+
+	srv := service.New(service.Name(web.Name))
 	//replace default server
 	server.DefaultServer = mock.NewServer(server.WrapHandler(auth.NewAuthHandlerWrapper()))
 
 	//init api server
-	api := httpweb.NewServer(Address)
+	mweb := web.New(web.Address, srv)
 
 	srv.Init(service.AfterStop(func() error {
-		// Stop HttpWeb after srv stop
-		if err := api.Stop(); err != nil {
+		// Stop HttpWeb after srv
+		if err := mweb.Stop(); err != nil {
 			logger.Fatal(err)
 		}
 		return nil
 	}))
+
+	if err := mweb.Run(); err != nil {
+		logger.Fatal(err)
+	}
 
 	if err := srv.Run(); err != nil {
 		logger.Fatal(err)

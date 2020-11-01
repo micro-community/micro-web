@@ -7,14 +7,13 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
-	"github.com/urfave/cli/v2"
 
 	"github.com/micro-community/micro-webui/handler/meta"
 	"github.com/micro-community/micro-webui/resolver"
 	"github.com/micro-community/micro-webui/resolver/path"
 	"github.com/micro-community/micro-webui/router"
-
 	regRouter "github.com/micro-community/micro-webui/router/registry"
+	"github.com/micro-community/micro-webui/server"
 	"github.com/micro-community/micro-webui/server/httpweb"
 
 	"github.com/micro/micro/v3/plugin"
@@ -58,12 +57,35 @@ var (
 	Host, _ = os.Hostname()
 )
 
+type srvWeb struct {
+	svc      *service.Service
+	api      server.Server
+	rr       resolver.Resolver
+	rt       router.Router
+	registry registry.Registry
+	logged   bool
+}
+
+func New(address string, service *service.Service) *srvWeb {
+
+	rr := path.NewResolver(resolver.WithServicePrefix(Namespace), resolver.WithHandler(Handler))
+	rt := regRouter.NewRouter(router.WithResolver(rr), router.WithRegistry(registry.DefaultRegistry))
+
+	return &srvWeb{
+		api: httpweb.NewServer(address),
+		rr:  rr,
+		rt:  rt,
+		svc: service,
+	}
+
+}
+
 //Run run micro web
-func Run(ctx *cli.Context, opts ...service.Option) {
+func (s *srvWeb) Run() error {
 
 	logger.Init(logger.WithFields(map[string]interface{}{"service": "web"}))
 
-	ResolveContext(ctx)
+	//	ResolveContext(ctx)
 
 	var h http.Handler
 	r := mux.NewRouter()
@@ -77,7 +99,8 @@ func Run(ctx *cli.Context, opts ...service.Option) {
 		if r.Method == "OPTIONS" {
 			return
 		}
-		response := fmt.Sprintf(`{"version": "%s"}`, ctx.App.Version)
+
+		response := fmt.Sprintf(`{"version": "%s"}`, s.svc.Version())
 		w.Write([]byte(response))
 	})
 
@@ -85,17 +108,12 @@ func Run(ctx *cli.Context, opts ...service.Option) {
 		return
 	})
 
-	rr := path.NewResolver(resolver.WithServicePrefix(Namespace), resolver.WithHandler(Handler))
-	rt := regRouter.NewRouter(router.WithResolver(rr), router.WithRegistry(registry.DefaultRegistry))
-	// initialize service
-	srv := service.New(service.Name(Name))
-	s := new(srvWeb)
 	r.HandleFunc("/client", s.CallHandler)
 	r.HandleFunc("/services", s.RegistryHandler)
 	r.HandleFunc("/service/{name}", s.RegistryHandler)
 	//r.PathPrefix("/{service:[a-zA-Z0-9]+}").Handler(p)
 
-	r.PathPrefix(APIPath).Handler(meta.NewMetaHandler(srv.Client(), rt, Namespace))
+	r.PathPrefix(APIPath).Handler(meta.NewMetaHandler(s.svc.Client(), s.rt, Namespace))
 
 	// register all the http handler plugins
 	for _, p := range plugin.Plugins() {
@@ -103,21 +121,14 @@ func Run(ctx *cli.Context, opts ...service.Option) {
 			h = v(h)
 		}
 	}
-
 	// append the auth wrapper
 	//h = auth.Wrapper(rr, Namespace)(h)
 
-	// create a new api server with wrappers
-	api := httpweb.NewServer(Address)
-
 	// register the handler
-	api.Handle("/", h)
+	s.api.Handle("/", h)
 
 	// Start API
-	if err := api.Start(); err != nil {
-		logger.Fatal(err)
-	}
-
+	return s.api.Start()
 }
 
 // s.HandleFunc("/favicon.ico", faviconHandler)
@@ -127,3 +138,7 @@ func Run(ctx *cli.Context, opts ...service.Option) {
 // s.HandleFunc("/rpc", handler.RPC)
 // s.PathPrefix("/{service:[a-zA-Z0-9]+}").Handler(p)
 // s.HandleFunc("/", s.indexHandler)
+
+func (s *srvWeb) Stop() error {
+	return s.api.Stop()
+}
