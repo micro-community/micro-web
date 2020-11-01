@@ -18,11 +18,13 @@ func main() {
 		return nil
 	}
 
-	_ = cmd.DefaultCmd.Init(cmd.Flags(web.Flags()...), cmd.Before(before))
+	parseFlags := cmd.New(cmd.SetupOnly(), cmd.Flags(web.Flags()...), cmd.Before(before))
+
+	//this is a workaround
+	parseFlags.App().Flags = append(parseFlags.App().Flags, web.Flags()...)
+	parseFlags.Run()
 
 	srv := service.New(service.Name(web.Name))
-
-	//cmd.DefaultCmd.App().Action = web.ResolveContext
 
 	//replace default server
 	server.DefaultServer = mock.NewServer(server.WrapHandler(auth.NewAuthHandlerWrapper()))

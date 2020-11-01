@@ -24,8 +24,7 @@ func ResolveContext(ctx *cli.Context) error {
 		Type = ctx.String("type")
 	}
 	if len(ctx.String("namespace")) > 0 {
-		// remove the service type from the namespace to allow for
-		// backwards compatability
+		// remove the service type from the namespace to allow for backwards compatability
 		Namespace = strings.TrimSuffix(ctx.String("namespace"), "."+Type)
 	}
 
@@ -42,9 +41,9 @@ func Flags(options ...service.Option) []cli.Flag {
 			EnvVars: []string{"MICRO_WEB_ADDRESS"},
 		},
 		&cli.StringFlag{
-			Name:    "namespace",
-			Usage:   "Set the namespace used by Web e.g. arch.wiki",
-			EnvVars: []string{"MICRO_WEB_NAMESPACE"},
+			Name:    "server_name",
+			Usage:   "Set the server_name of web",
+			EnvVars: []string{"MICRO_WEB_NAME"},
 		},
 		&cli.StringFlag{
 			Name:    "resolver",
