@@ -9,7 +9,7 @@ import (
 )
 
 //ResolveContext for web
-func ResolveContext(ctx *cli.Context) {
+func ResolveContext(ctx *cli.Context) error {
 
 	if len(ctx.String("server_name")) > 0 {
 		Name = ctx.String("server_name")
@@ -28,6 +28,8 @@ func ResolveContext(ctx *cli.Context) {
 		// backwards compatability
 		Namespace = strings.TrimSuffix(ctx.String("namespace"), "."+Type)
 	}
+
+	return nil
 }
 
 //Flags for `micro web flag`

@@ -1,10 +1,12 @@
 {
     "version": "0.1",
     "words": [
+        "mbroker",
+        "mregistry",
+        "mweb",
         "olist",
         "ropts",
         "tmpl",
-        "mweb",
         "urfave",
         "vals",
         "vpath",

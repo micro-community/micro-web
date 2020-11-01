@@ -11,20 +11,19 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-
 func main() {
 
-	//register new flags
-	cmd.Flags(web.Flags()...)
-
 	before := func(ctx *cli.Context) error {
-		web.ResolveContext(ctx)
+		_ = web.ResolveContext(ctx)
 		return nil
 	}
 
-	cmd.DefaultCmd.Init(cmd.Before(before))
+	_ = cmd.DefaultCmd.Init(cmd.Flags(web.Flags()...), cmd.Before(before))
 
 	srv := service.New(service.Name(web.Name))
+
+	//cmd.DefaultCmd.App().Action = web.ResolveContext
+
 	//replace default server
 	server.DefaultServer = mock.NewServer(server.WrapHandler(auth.NewAuthHandlerWrapper()))
 
