@@ -31,11 +31,7 @@ const (
 
 //Meta Fields of micro web
 var (
-	// Default server name
-	Name = "web"
-	// Default address to bind to
-	Address = ":80"
-	// The namespace to serve
+
 	// Example:
 	// Namespace + /[Service]/foo/bar
 	// Host: Namespace.Service Endpoint: /foo/bar
@@ -67,6 +63,10 @@ type srvWeb struct {
 }
 
 func New(address string, service *service.Service) *srvWeb {
+
+	if len(service.Server().Options().Address) > 0 {
+		address = service.Server().Options().Address
+	}
 
 	rr := path.NewResolver(resolver.WithServicePrefix(Namespace), resolver.WithHandler(Handler))
 	rt := regRouter.NewRouter(router.WithResolver(rr), router.WithRegistry(registry.DefaultRegistry))

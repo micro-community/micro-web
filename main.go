@@ -11,16 +11,25 @@ import (
 	"github.com/micro/micro/v3/service/server/mock"
 )
 
+var (
+
+	// Default server name
+	Name = "web"
+	// Default address to bind to
+	Address = ":80"
+	// The namespace to serve
+)
+
 func main() {
 
-	srv := service.New(service.Name(web.Name))
+	srv := service.New(service.Name(Name))
 	//replace default server
 	server.DefaultServer = mock.NewServer(server.WrapHandler(auth.NewAuthHandlerWrapper()))
 
 	web.ParseEnv()
 
 	//init api server
-	mweb := web.New(web.Address, srv)
+	mweb := web.New(Address, srv)
 
 	srv.Init(service.AfterStop(func() error {
 		// Stop HttpWeb after srv
