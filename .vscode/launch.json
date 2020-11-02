@@ -15,12 +15,14 @@
         "RedisHost": "redis://127.0.0.1:6379",
         "PubTopics": "alarm,status,event",
         "SubTopics": "alarm,status,event",
+        "type": "sometype",
+        "resolver": "path1",
       },
       "args": [
         "-c=${workspaceFolder}/config.json",
-        "--server_name=webName",
+        "--service_name=webName",
         "--profile=dev",
-        "--service_address=127.0.0.0.1:8080",
+        "--service_address=127.0.0.0.1:8080"
       ]
     }
   ]

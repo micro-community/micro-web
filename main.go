@@ -2,32 +2,22 @@ package main
 
 import (
 	"github.com/micro-community/micro-webui/auth"
+	_ "github.com/micro-community/micro-webui/profile"
 	"github.com/micro-community/micro-webui/web"
-	"github.com/micro/micro/v3/cmd"
+
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/logger"
 	"github.com/micro/micro/v3/service/server"
 	"github.com/micro/micro/v3/service/server/mock"
-	"github.com/urfave/cli/v2"
 )
 
 func main() {
 
-	before := func(ctx *cli.Context) error {
-		_ = web.ResolveContext(ctx)
-		return nil
-	}
-
-	parseFlags := cmd.New(cmd.SetupOnly(), cmd.Flags(web.Flags()...), cmd.Before(before))
-
-	//this is a workaround
-	parseFlags.App().Flags = append(parseFlags.App().Flags, web.Flags()...)
-	parseFlags.Run()
-
 	srv := service.New(service.Name(web.Name))
-
 	//replace default server
 	server.DefaultServer = mock.NewServer(server.WrapHandler(auth.NewAuthHandlerWrapper()))
+
+	web.ParseEnv()
 
 	//init api server
 	mweb := web.New(web.Address, srv)
