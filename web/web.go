@@ -16,7 +16,6 @@ import (
 	"github.com/micro-community/micro-webui/server"
 	"github.com/micro-community/micro-webui/server/httpweb"
 
-	"github.com/micro/micro/v3/plugin"
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/logger"
 	"github.com/micro/micro/v3/service/registry"
@@ -72,7 +71,7 @@ func New(address string, service *service.Service) *srvWeb {
 	rt := regRouter.NewRouter(router.WithResolver(rr), router.WithRegistry(registry.DefaultRegistry))
 
 	return &srvWeb{
-		api: httpweb.NewServer(address),
+		api: httpweb.NewServer(address, server.EnableCORS(true)),
 		rr:  rr,
 		rt:  rt,
 		svc: service,
@@ -91,7 +90,7 @@ func (s *srvWeb) Run() error {
 	r := mux.NewRouter()
 	h = r
 
-	logger.Infof("Registering API & Web Handler at %s", APIPath)
+	logger.Infof("Registering API & Web Handler at %s", "/")
 
 	//rt := regRouter.NewRouter()
 
@@ -99,7 +98,6 @@ func (s *srvWeb) Run() error {
 		if r.Method == "OPTIONS" {
 			return
 		}
-
 		response := fmt.Sprintf(`{"version": "%s"}`, s.svc.Version())
 		w.Write([]byte(response))
 	})
@@ -115,29 +113,12 @@ func (s *srvWeb) Run() error {
 
 	r.PathPrefix(APIPath).Handler(meta.NewMetaHandler(s.svc.Client(), s.rt, Namespace))
 
-	// register all the http handler plugins
-	for _, p := range plugin.Plugins() {
-		if v := p.Handler(); v != nil {
-			h = v(h)
-		}
-	}
-	// append the auth wrapper
-	//h = auth.Wrapper(rr, Namespace)(h)
-
 	// register the handler
 	s.api.Handle("/", h)
 
 	// Start API
 	return s.api.Start()
 }
-
-// s.HandleFunc("/favicon.ico", faviconHandler)
-// s.HandleFunc("/client", s.callHandler)
-// s.HandleFunc("/services", s.registryHandler)
-// s.HandleFunc("/service/{name}", s.registryHandler)
-// s.HandleFunc("/rpc", handler.RPC)
-// s.PathPrefix("/{service:[a-zA-Z0-9]+}").Handler(p)
-// s.HandleFunc("/", s.indexHandler)
 
 func (s *srvWeb) Stop() error {
 	return s.api.Stop()

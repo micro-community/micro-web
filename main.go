@@ -1,14 +1,11 @@
 package main
 
 import (
-	"github.com/micro-community/micro-webui/auth"
 	_ "github.com/micro-community/micro-webui/profile"
-	"github.com/micro-community/micro-webui/web"
 
+	"github.com/micro-community/micro-webui/web"
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/logger"
-	"github.com/micro/micro/v3/service/server"
-	"github.com/micro/micro/v3/service/server/mock"
 )
 
 var (
@@ -22,9 +19,7 @@ var (
 
 func main() {
 
-	srv := service.New(service.Name(Name))
-	//replace default server
-	server.DefaultServer = mock.NewServer(server.WrapHandler(auth.NewAuthHandlerWrapper()))
+	srv := service.New(service.Name(Name), service.Version("latest"))
 
 	web.ParseEnv()
 
