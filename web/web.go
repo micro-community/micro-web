@@ -31,6 +31,10 @@ const (
 //Meta Fields of micro web
 var (
 
+	// Default server name
+	Name = "web"
+	// Default address to bind to
+	Address = ":80"
 	// Example:
 	// Namespace + /[Service]/foo/bar
 	// Host: Namespace.Service Endpoint: /foo/bar

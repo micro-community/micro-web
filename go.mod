@@ -6,7 +6,7 @@ require (
 	github.com/go-acme/lego/v3 v3.9.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
-	github.com/micro/micro/v3 v3.0.1-0.20201106123606-1fc5978f576e
+	github.com/micro/micro/v3 v3.0.1-0.20201109124003-466467610795
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e
 	github.com/stretchr/testify v1.6.1
