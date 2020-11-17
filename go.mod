@@ -6,12 +6,12 @@ require (
 	github.com/go-acme/lego/v3 v3.9.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
-	github.com/micro/micro/v3 v3.0.1-0.20201109124003-466467610795
+	github.com/micro/micro/v3 v3.0.1
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e
 	github.com/stretchr/testify v1.6.1
 	github.com/urfave/cli/v2 v2.3.0
-	golang.org/x/net v0.0.0-20201031054903-ff519b6c9102
+	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
 )
 
 // This can be removed once etcd becomes go gettable, version 3.4 and 3.5 is not,
